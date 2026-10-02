@@ -78,9 +78,15 @@ jobs:
           git config user.name "$bot"
           git config user.email "${bot_id}+${bot}@users.noreply.github.com"
 
+          # 같은 버전으로 다시 실행돼도 사람이 브랜치에 추가한 커밋을 덮어쓰지 않는다
+          if git ls-remote --exit-code --heads origin "$branch" > /dev/null; then
+            echo "이미 ${branch} 브랜치가 있습니다."
+            exit 0
+          fi
+
           git switch -c "$branch"
           git commit -am "chore: ${name}를 ${VERSION}으로 업데이트"
-          git push --force origin "$branch"
+          git push origin "$branch"
 
           if [ -n "$(gh pr list --head "$branch" --json number --jq '.[].number')" ]; then
             echo "이미 PR이 있습니다."
