@@ -83,14 +83,16 @@ async function handleWorkflowRun(env: Env, event: WorkflowRunEvent): Promise<voi
 // Discord 머지 버튼 클릭. 3초 안에 응답해야 해서 응답을 먼저 돌려주고 머지는 백그라운드에서 한다.
 function handleMergeClick(env: Env, interaction: ComponentInteraction, ctx: ExecutionContext): Response {
   const target = parseMergeButtonId(interaction.data.custom_id);
-  const allowed = (env.DISCORD_MERGE_ROLE_IDS ?? "")
+  const allowed = (env.DISCORD_MERGE_ALLOWED_IDS ?? "")
     .split(",")
     .map((id) => id.trim())
     .filter(Boolean);
   const member = interaction.member;
 
   if (!target) return ephemeral("알 수 없는 버튼이에요.");
-  if (!member || !member.roles.some((role) => allowed.includes(role))) return ephemeral("머지 권한이 없어요.");
+  // 허용 목록에는 역할 ID와 사용자 ID를 섞어 쓸 수 있다 (Discord ID는 서로 겹치지 않는다)
+  const permitted = member && [member.user.id, ...member.roles].some((id) => allowed.includes(id));
+  if (!member || !permitted) return ephemeral("머지 권한이 없어요.");
 
   ctx.waitUntil(
     mergeFromButton(env, target, member.user.id)
