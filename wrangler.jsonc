@@ -12,9 +12,9 @@
     "GITHUB_APP_CLIENT_ID": "Iv23liV5IbxW2By1wyIv",
     // 아래는 업데이트 PR 머지 버튼용 (README의 "머지 버튼" 참고). 비어 있으면 Discord 메시지를 보내지 않는다
     // Discord 앱 설정 페이지의 Public Key
-    "DISCORD_PUBLIC_KEY": "",
+    "DISCORD_PUBLIC_KEY": "89d10b4b68f09581aa7d4e54a9fd1df9a04ad5f1bb2ae2d700111fe0e31052f7",
     // 업데이트 PR 메시지를 보낼 채널 ID
-    "DISCORD_CHANNEL_ID": "",
+    "DISCORD_CHANNEL_ID": "1555445790024142968",
     // 머지 버튼을 누를 수 있는 역할 ID. 쉼표로 여러 개
     "DISCORD_MERGE_ROLE_IDS": ""
   }
