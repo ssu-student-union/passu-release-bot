@@ -1,6 +1,6 @@
 # passu-release-bot
 
-패키지 레포에 새 Release가 올라오면 Discord로 알리고, 그 패키지를 쓰는 앱 레포마다 버전 업데이트 PR을 만들게 하는 GitHub App입니다. Cloudflare Workers에서 실행됩니다.
+패키지 레포에 새 Release가 올라오면 Discord로 알리고, 그 패키지를 쓰는 앱 레포마다 버전 업데이트 PR을 만들게 하는 GitHub App입니다.
 
 ```
 passu-ui Release 발행
@@ -9,8 +9,6 @@ passu-ui Release 발행
        └─ 앱 레포마다 repository_dispatch
             └─ 앱 레포의 워크플로가 pnpm add로 버전·lockfile 갱신 → 브랜치·PR 생성
 ```
-
-Worker는 lockfile을 갱신할 수 없어서(pnpm 실행 불가) PR은 앱 레포의 워크플로가 만듭니다.
 
 ## 감시 대상 추가
 
