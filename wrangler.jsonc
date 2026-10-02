@@ -9,6 +9,6 @@
   },
   "vars": {
     // GitHub App 설정 페이지의 Client ID (Iv로 시작)
-    "GITHUB_APP_CLIENT_ID": ""
+    "GITHUB_APP_CLIENT_ID": "Iv23liV5IbxW2By1wyIv"
   }
 }
