@@ -1,0 +1,14 @@
+{
+  // GitHub App(릴리스 봇)의 웹훅을 받아 Discord 알림과 앱 레포 업데이트 요청을 보낸다.
+  // 시크릿: GITHUB_APP_PRIVATE_KEY, GITHUB_WEBHOOK_SECRET, DISCORD_WEBHOOK_URL (wrangler secret put)
+  "name": "passu-release-bot",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    // GitHub App 설정 페이지의 Client ID (Iv로 시작)
+    "GITHUB_APP_CLIENT_ID": ""
+  }
+}

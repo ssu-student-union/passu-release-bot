@@ -1,0 +1,95 @@
+# 앱 레포의 .github/workflows/에 복사해서 씁니다.
+# passu-release-bot이 보낸 repository_dispatch를 받아 패키지를 새 버전으로 올리고 lockfile까지 갱신한 PR을 만듭니다.
+name: 의존성 업데이트
+
+on:
+  repository_dispatch:
+    types: [dependency-release]
+  # 봇 없이 직접 실행할 때 사용합니다.
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 패키지 이름
+        required: true
+        default: "@ssu-student-union/passu-ui"
+      version:
+        description: 버전 (예 1.6.0)
+        required: true
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    env:
+      PACKAGE: ${{ github.event.client_payload.package || inputs.package }}
+      VERSION: ${{ github.event.client_payload.version || inputs.version }}
+      RELEASE_URL: ${{ github.event.client_payload.release_url }}
+    steps:
+      # 외부에서 들어온 값이라 형식을 검사한 뒤에만 셸 명령에 씁니다.
+      - name: 입력 검사
+        run: |
+          [[ "$PACKAGE" =~ ^@ssu-student-union/[a-z0-9._-]+$ ]] || { echo "허용되지 않은 패키지: $PACKAGE"; exit 1; }
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo "잘못된 버전: $VERSION"; exit 1; }
+
+      - name: 릴리스 봇 토큰 발급
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.RELEASE_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_BOT_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://npm.pkg.github.com
+          scope: "@ssu-student-union"
+
+      - name: 버전 올리기
+        run: pnpm add "$PACKAGE@^$VERSION"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # CI에서는 git 훅을 설치·실행하지 않습니다.
+          LEFTHOOK: 0
+
+      - name: PR 만들기
+        run: |
+          if git diff --quiet; then
+            echo "변경 사항이 없습니다."
+            exit 0
+          fi
+
+          name="${PACKAGE#*/}"
+          branch="chore/${name}-${VERSION}"
+          bot="${APP_SLUG}[bot]"
+          bot_id="$(gh api "/users/${bot}" --jq .id)"
+          git config user.name "$bot"
+          git config user.email "${bot_id}+${bot}@users.noreply.github.com"
+
+          git switch -c "$branch"
+          git commit -am "chore: ${name}를 ${VERSION}으로 업데이트"
+          git push --force origin "$branch"
+
+          if [ -n "$(gh pr list --head "$branch" --json number --jq '.[].number')" ]; then
+            echo "이미 PR이 있습니다."
+            exit 0
+          fi
+          body="${PACKAGE}@${VERSION}"
+          [ -n "$RELEASE_URL" ] && body="${body}"$'\n\n'"릴리스 노트: ${RELEASE_URL}"
+          gh pr create --title "chore: ${name}를 ${VERSION}으로 업데이트" --body "$body"
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+          LEFTHOOK: 0
