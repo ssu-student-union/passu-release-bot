@@ -1,14 +1,9 @@
 import { DISPATCH_EVENT, OWNER, SOURCES } from "./config";
 import { notifyRelease } from "./discord";
+import type { Env } from "./env";
 import { createAppJwt, createInstallationToken, dispatch } from "./github";
-import { verifySignature } from "./verify";
-
-type Env = {
-  GITHUB_APP_CLIENT_ID: string;
-  GITHUB_APP_PRIVATE_KEY: string;
-  GITHUB_WEBHOOK_SECRET: string;
-  DISCORD_WEBHOOK_URL: string;
-};
+import { type ComponentInteraction, handleMergeClick, handleWorkflowRun, type WorkflowRunEvent } from "./updates";
+import { verifyDiscordSignature, verifySignature } from "./verify";
 
 type ReleaseEvent = {
   action: string;
@@ -22,21 +17,51 @@ export default {
     if (request.method !== "POST") return new Response("passu-release-bot", { status: 200 });
 
     const body = await request.text();
+    // Discord 앱 설정의 Interactions Endpoint URL은 /discord로 등록한다
+    if (new URL(request.url).pathname === "/discord") return handleDiscord(env, request, body, ctx);
+
     if (!(await verifySignature(env.GITHUB_WEBHOOK_SECRET, body, request.headers.get("X-Hub-Signature-256")))) {
       return new Response("invalid signature", { status: 401 });
     }
 
-    if (request.headers.get("X-GitHub-Event") !== "release") return new Response("ignored", { status: 202 });
-
-    const event = JSON.parse(body) as ReleaseEvent;
-    const source = SOURCES[event.repository.full_name];
-    if (event.action !== "published" || !source) return new Response("ignored", { status: 202 });
-
     // GitHub 웹훅은 10초 안에 응답해야 하므로 먼저 응답하고 나머지는 백그라운드에서 처리한다.
-    ctx.waitUntil(handleRelease(env, event, source.packageName, source.consumers));
-    return new Response("accepted", { status: 202 });
+    switch (request.headers.get("X-GitHub-Event")) {
+      case "release": {
+        const event = JSON.parse(body) as ReleaseEvent;
+        const source = SOURCES[event.repository.full_name];
+        if (event.action !== "published" || !source) break;
+        ctx.waitUntil(handleRelease(env, event, source.packageName, source.consumers));
+        return new Response("accepted", { status: 202 });
+      }
+      case "workflow_run": {
+        const event = JSON.parse(body) as WorkflowRunEvent;
+        if (event.action !== "completed") break;
+        ctx.waitUntil(handleWorkflowRun(env, event).catch((error) => console.error(error)));
+        return new Response("accepted", { status: 202 });
+      }
+    }
+    return new Response("ignored", { status: 202 });
   },
 } satisfies ExportedHandler<Env>;
+
+async function handleDiscord(env: Env, request: Request, body: string, ctx: ExecutionContext): Promise<Response> {
+  const valid =
+    env.DISCORD_PUBLIC_KEY &&
+    (await verifyDiscordSignature(
+      env.DISCORD_PUBLIC_KEY,
+      body,
+      request.headers.get("X-Signature-Ed25519"),
+      request.headers.get("X-Signature-Timestamp"),
+    ));
+  if (!valid) return new Response("invalid signature", { status: 401 });
+
+  const interaction = JSON.parse(body) as { type: number } & ComponentInteraction;
+  // PING: Discord가 엔드포인트를 등록할 때 보낸다
+  if (interaction.type === 1) return Response.json({ type: 1 });
+  // MESSAGE_COMPONENT: 버튼 클릭
+  if (interaction.type === 3) return handleMergeClick(env, interaction, ctx);
+  return new Response("unsupported interaction", { status: 400 });
+}
 
 async function handleRelease(env: Env, event: ReleaseEvent, packageName: string, consumers: string[]): Promise<void> {
   const version = event.release.tag_name.replace(/^v/, "");

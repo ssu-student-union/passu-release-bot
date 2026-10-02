@@ -1,6 +1,6 @@
 {
   // GitHub App(릴리스 봇)의 웹훅을 받아 Discord 알림과 앱 레포 업데이트 요청을 보낸다.
-  // 시크릿: GITHUB_APP_PRIVATE_KEY, GITHUB_WEBHOOK_SECRET, DISCORD_WEBHOOK_URL (wrangler secret put)
+  // 시크릿: GITHUB_APP_PRIVATE_KEY, GITHUB_WEBHOOK_SECRET, DISCORD_WEBHOOK_URL, DISCORD_BOT_TOKEN (wrangler secret put)
   "name": "passu-release-bot",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-01",
@@ -9,6 +9,13 @@
   },
   "vars": {
     // GitHub App 설정 페이지의 Client ID (Iv로 시작)
-    "GITHUB_APP_CLIENT_ID": "Iv23liV5IbxW2By1wyIv"
+    "GITHUB_APP_CLIENT_ID": "Iv23liV5IbxW2By1wyIv",
+    // 아래는 업데이트 PR 머지 버튼용 (README의 "머지 버튼" 참고). 비어 있으면 Discord 메시지를 보내지 않는다
+    // Discord 앱 설정 페이지의 Public Key
+    "DISCORD_PUBLIC_KEY": "",
+    // 업데이트 PR 메시지를 보낼 채널 ID
+    "DISCORD_CHANNEL_ID": "",
+    // 머지 버튼을 누를 수 있는 역할 ID. 쉼표로 여러 개
+    "DISCORD_MERGE_ROLE_IDS": ""
   }
 }

@@ -51,6 +51,100 @@ async function dispatch(token: string, owner: string, repo: string, eventType: s
   if (!res.ok) throw new Error(`${owner}/${repo} dispatch 실패 (${res.status}): ${await res.text()}`);
 }
 
+async function request<T>(token: string, method: string, path: string, body?: object): Promise<T> {
+  const res = await fetch(`${API}${path}`, {
+    method,
+    headers: { ...HEADERS, Authorization: `Bearer ${token}` },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) throw new Error(`${method} ${path} 실패 (${res.status}): ${await res.text()}`);
+  return (res.status === 204 ? undefined : await res.json()) as T;
+}
+
+// 레포에 설치된 App의 installation ID. Discord 버튼처럼 GitHub 웹훅 밖에서 호출될 때 쓴다.
+async function getRepoInstallationId(jwt: string, owner: string, repo: string): Promise<number> {
+  const { id } = await request<{ id: number }>(jwt, "GET", `/repos/${owner}/${repo}/installation`);
+  return id;
+}
+
+// App 자신의 slug. PR 작성자가 이 App(`<slug>[bot]`)인지 확인할 때 쓴다.
+async function getAppSlug(jwt: string): Promise<string> {
+  const { slug } = await request<{ slug: string }>(jwt, "GET", "/app");
+  return slug;
+}
+
+type PullRequest = {
+  number: number;
+  state: "open" | "closed";
+  merged: boolean;
+  // GitHub이 아직 계산 중이면 null
+  mergeable: boolean | null;
+  html_url: string;
+  user: { login: string };
+  head: { ref: string; sha: string; repo: { full_name: string } | null };
+  base: { sha: string };
+};
+
+function getPullRequest(token: string, owner: string, repo: string, number: number): Promise<PullRequest> {
+  return request(token, "GET", `/repos/${owner}/${repo}/pulls/${number}`);
+}
+
+// 커밋이 들어 있는 PR 번호. pull_request_target 워크플로처럼 웹훅에 PR 목록이 비어 올 때 쓴다
+async function listPullRequestNumbersForCommit(
+  token: string,
+  owner: string,
+  repo: string,
+  sha: string,
+): Promise<number[]> {
+  const prs = await request<{ number: number; state: string }[]>(
+    token,
+    "GET",
+    `/repos/${owner}/${repo}/commits/${sha}/pulls`,
+  );
+  return prs.filter((pr) => pr.state === "open").map((pr) => pr.number);
+}
+
+type WorkflowRun = {
+  name: string;
+  status: string;
+  conclusion: string | null;
+};
+
+// 커밋 하나에 대해 돈 Actions 워크플로 실행 목록
+async function listWorkflowRuns(token: string, owner: string, repo: string, sha: string): Promise<WorkflowRun[]> {
+  const { workflow_runs } = await request<{ workflow_runs: WorkflowRun[] }>(
+    token,
+    "GET",
+    `/repos/${owner}/${repo}/actions/runs?head_sha=${sha}&per_page=100`,
+  );
+  return workflow_runs;
+}
+
+async function getFileContent(token: string, owner: string, repo: string, path: string, ref: string): Promise<string> {
+  const { content } = await request<{ content: string }>(
+    token,
+    "GET",
+    `/repos/${owner}/${repo}/contents/${path}?ref=${ref}`,
+  );
+  const bytes = Uint8Array.from(atob(content.replace(/\s/g, "")), (c) => c.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+// sha를 넘기면 그 사이 브랜치에 새 커밋이 올라왔을 때 GitHub이 머지를 거부한다(409).
+async function mergePullRequest(
+  token: string,
+  owner: string,
+  repo: string,
+  number: number,
+  sha: string,
+): Promise<void> {
+  await request(token, "PUT", `/repos/${owner}/${repo}/pulls/${number}/merge`, { merge_method: "squash", sha });
+}
+
+async function deleteBranch(token: string, owner: string, repo: string, branch: string): Promise<void> {
+  await request(token, "DELETE", `/repos/${owner}/${repo}/git/refs/heads/${branch}`);
+}
+
 // GitHub에서 받은 키는 PKCS#1(BEGIN RSA PRIVATE KEY)이고 WebCrypto는 PKCS#8만 읽으므로,
 // PKCS#1이면 PKCS#8 구조로 감싼다. 이미 PKCS#8(BEGIN PRIVATE KEY)이면 그대로 쓴다.
 function toPkcs8(pem: string): Uint8Array {
@@ -78,4 +172,17 @@ function base64url(input: string | Uint8Array): string {
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-export { createAppJwt, createInstallationToken, dispatch };
+export type { PullRequest, WorkflowRun };
+export {
+  createAppJwt,
+  createInstallationToken,
+  deleteBranch,
+  dispatch,
+  getAppSlug,
+  getFileContent,
+  getPullRequest,
+  getRepoInstallationId,
+  listPullRequestNumbersForCommit,
+  listWorkflowRuns,
+  mergePullRequest,
+};
