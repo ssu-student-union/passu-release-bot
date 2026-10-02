@@ -13,7 +13,7 @@ passu-ui Release 발행
   ├─ CI 실패·충돌 → Discord에 알림만
   ├─ 패치 → 바로 squash 머지, 브랜치 삭제
   └─ 마이너·메이저 → Discord에 [머지] 버튼
-       └─ 허용된 역할이 누르면 → PR 상태를 다시 확인하고 머지
+       └─ 허용된 역할·사람이 누르면 → PR 상태를 다시 확인하고 머지
 ```
 
 머지 버튼을 누르면 그 사이 PR에 새 커밋이 올라왔는지, CI가 여전히 통과인지, 충돌이 없는지 다시 확인한 뒤 머지합니다. 새 커밋이 있으면 머지하지 않고, 그 커밋의 CI가 끝날 때 새 메시지를 보냅니다.
@@ -68,7 +68,7 @@ pnpm exec wrangler secret put DISCORD_BOT_TOKEN
 |---|---|
 | `DISCORD_PUBLIC_KEY` | General Information의 Public Key |
 | `DISCORD_CHANNEL_ID` | 메시지를 보낼 채널 ID (개발자 모드에서 채널 우클릭 → ID 복사) |
-| `DISCORD_MERGE_ROLE_IDS` | 머지 버튼을 누를 수 있는 역할 ID. 쉼표로 여러 개. 비어 있으면 아무도 누를 수 없습니다 |
+| `DISCORD_MERGE_ALLOWED_IDS` | 머지 버튼을 누를 수 있는 역할 ID 또는 사용자 ID. 쉼표로 여러 개, 섞어 써도 됩니다. 비어 있으면 아무도 누를 수 없습니다 |
 
 ## 개발
 

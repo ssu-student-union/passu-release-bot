@@ -7,8 +7,8 @@ type Env = {
   DISCORD_BOT_TOKEN?: string;
   DISCORD_PUBLIC_KEY?: string;
   DISCORD_CHANNEL_ID?: string;
-  // 머지 버튼을 누를 수 있는 Discord 역할 ID. 쉼표로 여러 개. 비어 있으면 아무도 누를 수 없다
-  DISCORD_MERGE_ROLE_IDS?: string;
+  // 머지 버튼을 누를 수 있는 Discord 역할 ID 또는 사용자 ID. 쉼표로 여러 개. 비어 있으면 아무도 누를 수 없다
+  DISCORD_MERGE_ALLOWED_IDS?: string;
 };
 
 export type { Env };
